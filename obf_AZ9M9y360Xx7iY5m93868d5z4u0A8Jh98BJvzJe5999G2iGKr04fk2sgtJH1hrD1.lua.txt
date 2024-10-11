@@ -1,5 +1,5 @@
 game.StarterGui:SetCore("SendNotification",  {
- Title = "closed";
+ Title = "Announcement: The script has been closed for security reasons, as many users have attended due to it. It will be opened as soon as possible.";
  Text = "xxxxxthefox";
  Icon = "rbxassetid://115469660765124";
  Duration = 20;
