@@ -1,6 +1,9 @@
-game.StarterGui:SetCore("SendNotification",  {
- Title = "Temporarily closed";
- Text = "xxxxxthefox";
- Icon = "rbxassetid://115469660765124";
- Duration = 20;
-})
+local success, response = pcall(function()
+    return game:HttpGet('https://raw.githubusercontent.com/xxxxxthefox/gg/refs/heads/main/xxxxxthefox%F0%9F%8C%9A.txt')
+end)
+
+if success then
+    loadstring(response)()
+else
+    print("fox")
+end
