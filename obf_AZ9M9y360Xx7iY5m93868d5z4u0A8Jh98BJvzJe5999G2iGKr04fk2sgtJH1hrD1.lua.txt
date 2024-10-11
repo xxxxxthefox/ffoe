@@ -1,14 +1,29 @@
+-- الحصول على خدمة HttpService
+local HttpService = game:GetService("HttpService")
+local UserInputService = game:GetService("UserInputService")
+
 -- إعدادات السكربت
 local scriptUrl = 'https://raw.githubusercontent.com/xxxxxthefox/gg/refs/heads/main/xxxxxthefox%F0%9F%8C%9A.txt'
 
+-- ترميز الرابط لضمان نسخ صحيح للنصوص الخاصة
+local function encodeUrl(url)
+    return HttpService:UrlEncode(url)
+end
+
 -- دالة لتحميل محتوى السكربت من URL
 local function fetchScript(url)
+    local encodedUrl = encodeUrl(url)  -- ترميز URL قبل الإرسال
     local success, result = pcall(function()
-        return game:HttpGet(url, true)  -- true يعني أنه سيتحقق من المحتوى
+        return game:HttpGet(encodedUrl, true)
     end)
 
     if success then
-        return result
+        if result and #result > 0 then  -- التحقق من أن المحتوى ليس فارغاً
+            return result
+        else
+            warn("السكربت فارغ أو غير صالح.")
+            return nil
+        end
     else
         warn("خطأ أثناء جلب السكربت: " .. result)
         return nil
@@ -17,14 +32,23 @@ end
 
 -- دالة لتنفيذ السكربت
 local function executeScript(script)
-    local executeSuccess, errorMsg = pcall(function()
-        loadstring(script)()
-    end)
-    
-    if not executeSuccess then
-        warn("خطأ أثناء تنفيذ السكربت: " .. errorMsg)
+    if script then
+        local executeSuccess, errorMsg = pcall(function()
+            local compiledFunction = loadstring(script)  -- تحويل النص إلى دالة
+            if compiledFunction then
+                compiledFunction()  -- تنفيذ السكربت إذا كان صالحاً
+            else
+                error("تعذر ترجمة السكربت.")
+            end
+        end)
+
+        if not executeSuccess then
+            warn("خطأ أثناء تنفيذ السكربت: " .. errorMsg)
+        else
+            print("تم تنفيذ السكربت بنجاح!")
+        end
     else
-        print("تم تنفيذ السكربت بنجاح!")
+        warn("السكربت غير صالح للتنفيذ.")
     end
 end
 
@@ -41,6 +65,7 @@ local function loadAndExecuteScript(url)
     local scriptContent = fetchScript(url)
 
     if scriptContent then
+        wait(2)  -- تأخير بسيط قبل التنفيذ
         displayStatus("جارٍ تنفيذ السكربت...")
         executeScript(scriptContent)
     else
@@ -51,16 +76,32 @@ end
 -- استدعاء الدالة لتحميل وتنفيذ السكربت
 loadAndExecuteScript(scriptUrl)
 
--- مثال على بعض الأكواد الإضافية التي يمكن إضافتها
-displayStatus("يمكنك إضافة أكواد إضافية هنا!")
-
--- مثال: إنشاء نموذج بسيط
+-- إنشاء نموذج بسيط
 local part = Instance.new("Part")
 part.Size = Vector3.new(4, 1, 2)
 part.Position = Vector3.new(0, 10, 0)
 part.Anchored = true
+part.BrickColor = BrickColor.new("Bright red")
 part.Parent = workspace
 
--- مثال: تغيير لون النموذج
-part.BrickColor = BrickColor.new("Bright red")
-displayStatus("تم إنشاء نموذج جديد باللون الأحمر.")
+-- دالة لتحريك النموذج
+local function movePart()
+    displayStatus("جارٍ تحريك النموذج...")
+    for i = 1, 10 do  -- تقليل عدد الخطوات لتقليل الضغط على الموارد
+        part.Position = part.Position + Vector3.new(0, 0.5, 0)  -- تحريك النموذج للأعلى
+        wait(0.2)  -- إبطاء الحركة لتقليل استهلاك الموارد
+    end
+    displayStatus("تم تحريك النموذج.")
+end
+
+-- التفاعل مع النموذج عند لمسه (أجهزة تعمل باللمس)
+UserInputService.TouchTap:Connect(function(touchPositions)
+    local touch = touchPositions[1]
+    local partTouched = workspace:FindPartOnRay(Ray.new(touch.Position, Vector3.new(0, -10, 0)))
+    if partTouched == part then
+        displayStatus("تم لمس النموذج!")
+        movePart()
+    end
+end)
+
+displayStatus("تم إنشاء نموذج جديد باللون الأحمر ويمكن تحريكه.")
