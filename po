@@ -1,0 +1,65 @@
+game.StarterGui:SetCore("SendNotification",  {
+    Title = "vip fps";
+    Text = "xxxxxthefox";
+    Icon = "rbxassetid://115469660765124";
+    Duration = 20;
+})
+
+
+local decalsyeeted = true -- إزالة الصور والملمس
+local g = game
+local w = g.Workspace
+local l = g.Lighting
+local t = w.Terrain
+local s = settings()
+
+-- تعطيل الماء وجعله يبدو مسطحًا مثل ألعاب PS1
+t.WaterWaveSize = 0
+t.WaterWaveSpeed = 0
+t.WaterReflectance = 0
+t.WaterTransparency = 1 -- يجعل الماء غير مرئي
+
+-- تعطيل الإضاءة والظلال لجعل كل شيء مسطحًا
+l.GlobalShadows = false
+l.Brightness = 0
+l.FogEnd = 50 -- تقليل مدى الرؤية مثل ألعاب PS1
+
+-- جعل جودة الرسومات في أدنى مستوى ممكن
+s.Rendering.QualityLevel = Enum.QualityLevel.Level01
+
+-- تعطيل جميع التأثيرات مثل التوهج والضباب
+for _, e in pairs(l:GetChildren()) do
+    if e:IsA("BlurEffect") or e:IsA("SunRaysEffect") or e:IsA("ColorCorrectionEffect") 
+    or e:IsA("BloomEffect") or e:IsA("DepthOfFieldEffect") then
+        e.Enabled = false
+    end
+end
+
+-- إزالة القوام وجعل كل شيء يبدو بدائيًا
+for _, v in pairs(g:GetDescendants()) do
+    if v:IsA("Part") or v:IsA("Union") or v:IsA("CornerWedgePart") or v:IsA("TrussPart") then
+        v.Material = Enum.Material.Plastic -- جعل كل شيء بلاستيكي مثل ألعاب PS1
+        v.Reflectance = 0
+        v.Color = Color3.fromRGB(math.random(100, 255), math.random(100, 255), math.random(100, 255)) -- ألوان غير دقيقة كما في PS1
+    elseif v:IsA("Decal") or v:IsA("Texture") and decalsyeeted then
+        v.Transparency = 1 -- إزالة جميع الصور والملمس
+    elseif v:IsA("ParticleEmitter") or v:IsA("Trail") then
+        v.Lifetime = NumberRange.new(0) -- تعطيل المؤثرات
+    elseif v:IsA("Explosion") then
+        v.BlastPressure = 1
+        v.BlastRadius = 1
+    elseif v:IsA("Fire") or v:IsA("SpotLight") or v:IsA("Smoke") then
+        v.Enabled = false -- إلغاء الإضاءة والدخان
+    elseif v:IsA("MeshPart") then
+        v.Material = Enum.Material.Plastic
+        v.Reflectance = 0
+        v.TextureID = "" -- إزالة القوام من الميشات
+    end
+end
+
+-- تعطيل الصوت مثل بعض ألعاب PS1 التي كانت بدون مؤثرات صوتية قوية
+for _, sound in pairs(g.SoundService:GetChildren()) do
+    if sound:IsA("Sound") then
+        sound.Volume = 0
+    end
+end
