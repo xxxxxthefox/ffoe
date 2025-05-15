@@ -49,7 +49,7 @@ local bondPoints = {
 local screenGui = Instance.new("ScreenGui")
 screenGui.Name = "SarynHubGui"
 screenGui.ResetOnSpawn = false
-screenGui.Parent = player:WaitForChild("CoreGui")
+screenGui.Parent = player:WaitForChild("PlayerGui")
 
 
 -- 
