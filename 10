@@ -1,39 +1,33 @@
--- الخدمات
 local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
 local TweenService = game:GetService("TweenService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
-
--- المتغيرات الأساسية
 local EndDecision = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("EndDecision")
+
 local player = Players.LocalPlayer
 local character = player.Character or player.CharacterAdded:Wait()
 local root = character:WaitForChild("HumanoidRootPart")
 
--- إعدادات السكربت
 local autoFarmBond = false
 local CollectBond = false
 local started = false
 local tweenSpeed = 1000
 local currentIndex = 1
+
 local collectDelay = 0.01
 local lastCollectTime = 0
-local bondsCollectedCount = 0
-local counting = false
-local startTime = 0
-local elapsedTime = 0
 
--- مكان البنادق (Gun) والمدى
+-- 
 local gunCFrame = CFrame.new(
-    350.5, 50.89, -9100.78,
-    -0.9058, -0.0674, -0.4182,
-     0.0113,  0.9830, -0.1831,
-     0.4234, -0.1706, -0.8896
+    350.500061, 50.8906364, -9100.78516,
+    -0.905841053, -0.0674131364, -0.418219507,
+     0.0113797104,  0.983027875, -0.183102921,
+     0.423464984, -0.170621336, -0.889699876
 )
 local rangeMaxGun = 200
 
--- نقاط التجميع (Bond points)
+-- 
 local bondPoints = {
     CFrame.new(-475.66, 200.77, 21969.36),
     CFrame.new(-319.90, 200.77, 14036.94),
@@ -42,95 +36,23 @@ local bondPoints = {
     CFrame.new(249.76, 200.77, -9067.68),
     CFrame.new(-138.72, 200.77, -17713.91),
     CFrame.new(249.76, 200.77, -9067.68),
-    CFrame.new(228.52, 200.77, 5163.45),
-    CFrame.new(-860.02, 200.77, -27428.81),
+    CFrame.new(228.526764, 200.77, 5163.45557),
+    CFrame.new(-860.029114, 200.77, -27428.8184),
     CFrame.new(10.24, 200.77, -33604.30),
     CFrame.new(-322.95, 200.77, -41545.23),
-    CFrame.new(-384.79, 40, -48746.83),
-    CFrame.new(-379.98, 3, -49471.26),
+    CFrame.new(-384.791534, 40, -48746.832),
+    CFrame.new(-379.982697, 3, -49471.2695),
     CFrame.new(-380.45, -23, -49332.89),
 }
 
--- إنشاء واجهة المستخدم GUI
-local playerGui = player:WaitForChild("PlayerGui")
+-- 
 local screenGui = Instance.new("ScreenGui")
 screenGui.Name = "SarynHubGui"
-screenGui.IgnoreGuiInset = true
 screenGui.ResetOnSpawn = false
-screenGui.Enabled = false
-screenGui.Parent = playerGui
+screenGui.Parent = player:WaitForChild("PlayerGui")
 
-local bgFrame = Instance.new("Frame")
-bgFrame.Size = UDim2.fromScale(1, 1)
-bgFrame.Position = UDim2.fromScale(0, 0)
-bgFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
-bgFrame.BorderSizePixel = 0
-bgFrame.Parent = screenGui
 
-local logo = Instance.new("ImageLabel")
-logo.Size = UDim2.fromOffset(320, 320)
-logo.AnchorPoint = Vector2.new(0.5, 0.5)
-logo.Position = UDim2.new(0.5, 0, 0.5, 0)
-logo.BackgroundTransparency = 1
-logo.Image = "rbxassetid://115469660765124"
-logo.ScaleType = Enum.ScaleType.Fit
-logo.Parent = bgFrame
-
-local footer = Instance.new("TextLabel")
-footer.Size = UDim2.new(1, 0, 0, 40)
-footer.Position = UDim2.new(0, 0, 1, -150)
-footer.BackgroundTransparency = 1
-footer.Text = "fox/xxxxxthefox | تجميع تلقائي Bond"
-footer.Font = Enum.Font.GothamBold
-footer.TextColor3 = Color3.fromRGB(255, 255, 255)
-footer.TextScaled = true
-footer.Parent = bgFrame
-
-local timerLabel = Instance.new("TextLabel")
-timerLabel.Size = UDim2.new(0, 200, 0, 40)
-timerLabel.Position = UDim2.new(0.5, -100, 0.5, 180)
-timerLabel.BackgroundTransparency = 1
-timerLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-timerLabel.Font = Enum.Font.GothamBold
-timerLabel.TextSize = 30
-timerLabel.Text = "الوقت: 00:00"
-timerLabel.Visible = false
-timerLabel.Parent = bgFrame
-
-local collectedLabel = Instance.new("TextLabel")
-collectedLabel.Size = UDim2.new(0, 200, 0, 40)
-collectedLabel.Position = UDim2.new(0.5, -100, 0.5, 220)
-collectedLabel.BackgroundTransparency = 1
-collectedLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-collectedLabel.Font = Enum.Font.GothamBold
-collectedLabel.TextSize = 25
-collectedLabel.Text = "تم التجميع: 0"
-collectedLabel.Visible = true
-collectedLabel.Parent = bgFrame
-
--- دالة التنسيق الزمني
-local function formatTime(seconds)
-    local mins = math.floor(seconds / 60)
-    local secs = seconds % 60
-    return string.format("%02d:%02d", mins, secs)
-end
-
--- دالة التنقل باستخدام Tween
-local function tweenTo(cf)
-    local distance = (root.Position - cf.Position).Magnitude
-    local duration = distance / tweenSpeed
-    local tweenInfo = TweenInfo.new(duration, Enum.EasingStyle.Linear)
-    local tween = TweenService:Create(root, tweenInfo, {CFrame = cf})
-    local success, err = pcall(function()
-        tween:Play()
-        task.wait(duration)
-    end)
-    if not success then
-        warn("Tween error:", err)
-    end
-end
-
--- دالة النقل الفوري (Teleport)
+-- 
 local function teleportTo(cf)
     root.Anchored = true
     root.CFrame = cf
@@ -138,10 +60,28 @@ local function teleportTo(cf)
     root.Anchored = false
 end
 
--- دالة البحث عن البنادق (MaximGun) ضمن مدى معين
+-- 
+local function tweenTo(cf)
+    local distance = (root.Position - cf.Position).Magnitude
+    local duration = distance / tweenSpeed
+    local tweenInfo = TweenInfo.new(duration, Enum.EasingStyle.Linear)
+    local tween = TweenService:Create(root, tweenInfo, { CFrame = cf })
+
+    local success, err = pcall(function()
+        tween:Play()
+        task.wait(duration)
+    end)
+
+    if not success then
+        warn("Tween error:", err)
+    end
+end
+
+-- 
 local function getLockedGun()
     local runtime = Workspace:FindFirstChild("RuntimeItems")
     if not runtime then return nil end
+
     for _, v in ipairs(runtime:GetChildren()) do
         if v:IsA("Model") and v.Name == "MaximGun" then
             local dist = (v:GetPivot().Position - gunCFrame.Position).Magnitude
@@ -150,22 +90,23 @@ local function getLockedGun()
             end
         end
     end
+
     return nil
 end
 
--- دالة الجلوس في البندقية
+-- 
 local function sitInGun()
     local gun = getLockedGun()
     local seat = gun and gun:FindFirstChild("VehicleSeat")
     if seat and seat:IsA("VehicleSeat") then
         if seat.Disabled then seat.Disabled = false end
-        teleportTo(seat.CFrame)
+        teleportTo(seat.CFrame + Vector3.new(0, 0, 0))
         return true
     end
     return false
 end
 
--- دالة القفز للخروج
+-- 
 local function jumpOff()
     local humanoid = character:FindFirstChildOfClass("Humanoid")
     if humanoid then
@@ -173,7 +114,7 @@ local function jumpOff()
     end
 end
 
--- دالة تثبيت الشخصية في الهواء
+-- 
 local function freezeMidAir()
     local freezePos = root.Position + Vector3.new(0, 5, 0)
     root.Anchored = true
@@ -182,20 +123,7 @@ local function freezeMidAir()
     root.Anchored = false
 end
 
--- دالة التجهيز على البندقية
-local function setupGun()
-    teleportTo(gunCFrame)
-    if sitInGun() then
-        task.wait(0.6)
-        jumpOff()
-        freezeMidAir()
-        task.wait(0.5)
-        sitInGun()
-        task.wait(0.1)
-    end
-end
-
--- دالة محاولة التنقل للبوند القريب
+-- 
 local function tryTweenToBond()
     local runtime = Workspace:FindFirstChild("RuntimeItems")
     if runtime then
@@ -213,21 +141,171 @@ local function tryTweenToBond()
     return false
 end
 
--- دالة البحث والتنقل بين نقاط البوند
+--MaximGun
+local function setupGun()
+    teleportTo(gunCFrame)
+    if sitInGun() then
+        task.wait(0.6)
+        jumpOff()
+        freezeMidAir()
+        task.wait(0.5)
+        sitInGun()
+        task.wait(0.1)
+    end
+end
+
+-- 
+RunService.Heartbeat:Connect(function()
+    if CollectBond and tick() - lastCollectTime >= collectDelay then
+        lastCollectTime = tick()
+
+        for _, bond in ipairs(Workspace:GetDescendants()) do
+            if bond:IsA("Model") and bond.Name == "Bond" then
+                local args = { bond }
+                pcall(function()
+                    ReplicatedStorage
+                        :WaitForChild("Shared")
+                        :WaitForChild("Network")
+                        :WaitForChild("RemotePromise")
+                        :WaitForChild("Remotes")
+                        :WaitForChild("C_ActivateObject")
+                        :FireServer(unpack(args))
+                end)
+            end
+        end
+    end
+end)
+
+-- 
+local playerGui = player:WaitForChild("PlayerGui")
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "SarynHubGui"
+screenGui.IgnoreGuiInset = true
+screenGui.ResetOnSpawn = false
+screenGui.Enabled = false
+screenGui.Parent = playerGui
+
+-- 
+local bgFrame = Instance.new("Frame")
+bgFrame.Size = UDim2.fromScale(1, 1)
+bgFrame.Position = UDim2.fromScale(0, 0)
+bgFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+bgFrame.BorderSizePixel = 0
+bgFrame.Parent = screenGui
+
+-- 
+local logo = Instance.new("ImageLabel")
+logo.Size = UDim2.fromOffset(320, 320)
+logo.AnchorPoint = Vector2.new(0.5, 0.5)
+logo.Position = UDim2.new(0.5, 0, 0.5, 0)
+logo.BackgroundTransparency = 1
+logo.Image = "rbxassetid://115469660765124"
+logo.ScaleType = Enum.ScaleType.Fit
+logo.Parent = bgFrame
+
+-- 
+local footer = Instance.new("TextLabel")
+footer.Size = UDim2.new(1, 0, 0, 40)
+footer.Position = UDim2.new(0, 0, 1, -150)
+footer.BackgroundTransparency = 1
+footer.Text = "fox/xxxxxthefox | تجميع تلقائي Bond"
+footer.Font = Enum.Font.GothamBold
+footer.TextColor3 = Color3.fromRGB(255, 255, 255)
+footer.TextScaled = true
+footer.Parent = bgFrame
+
+-- Time
+local timerLabel = Instance.new("TextLabel")
+timerLabel.Size = UDim2.new(0, 200, 0, 40)
+timerLabel.Position = UDim2.new(0.5, -100, 0.5, 180) -- Dưới logo
+timerLabel.BackgroundTransparency = 1 -- Không có khung
+timerLabel.TextColor3 = Color3.fromRGB(255, 255, 255) -- Trắng khi chạy
+timerLabel.Font = Enum.Font.GothamBold
+timerLabel.TextSize = 30
+timerLabel.Text = "الوقت: 00:00"
+timerLabel.Visible = false
+timerLabel.Parent = bgFrame
+
+-- 
+local function formatTime(seconds)
+    local mins = math.floor(seconds / 60)
+    local secs = seconds % 60
+    return string.format("%02d:%02d", mins, secs)
+end
+
+-- 
+task.spawn(function()
+    while true do
+        task.wait(0.1)
+        if counting then
+            elapsedTime = math.floor(tick() - startTime)
+            timerLabel.Text = "الوقت: " .. formatTime(elapsedTime)
+        end
+    end
+end)
+
+autoFarmBond = true
+CollectBond = true
+screenGui.Enabled = true
+startTime = tick()
+elapsedTime = 0
+counting = true
+timerLabel.Text = "الوقت: 00:00"
+timerLabel.Visible = true
+
+-- 
+local function finishFarm()
+    autoFarmBond = false
+    CollectBond = false
+    started = false
+    timerLabel.TextColor3 = Color3.fromRGB(0, 255, 0)
+    counting = false
+
+    -- 
+    local humanoid = character:FindFirstChildOfClass("Humanoid")
+    if humanoid then
+        humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+    end
+
+    doneLabel.Visible = true
+    task.delay(1, function()
+        doneLabel.Visible = false
+        timerLabel.Visible = false
+    end)
+end
+
+-- 
 local function searchBondPoints()
     if currentIndex > #bondPoints then
         finishFarm()
         return
     end
+
     local cf = bondPoints[currentIndex]
+
     if tryTweenToBond() then
         return
     end
+
     teleportTo(cf)
     currentIndex += 1
 end
 
--- دالة إنهاء التجميع
-function finishFarm()
-    autoFarmBond = false
-    Collect
+-- 
+task.spawn(function()
+    while task.wait(0.3) do
+        if autoFarmBond and not started then
+            setupGun()
+            started = true
+        elseif autoFarmBond and started then
+            searchBondPoints()
+        end
+    end
+end)
+
+local args = { false }
+
+while true do
+    EndDecision:FireServer(unpack(args))
+    task.wait(0.5)
+end
