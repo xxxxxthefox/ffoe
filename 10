@@ -13,7 +13,7 @@ local root = character:WaitForChild("HumanoidRootPart")
 local autoFarmBond = false
 local collectBond = false
 local started = false
-local tweenSpeed = 250 -- سرعة التنقل
+local tweenSpeed = 200 -- سرعة التنقل
 local currentIndex = 1
 
 local collectDelay = 0.01
