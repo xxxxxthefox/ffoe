@@ -25,7 +25,7 @@ local gunCFrame = CFrame.new(
      0.0113797104,  0.983027875, -0.183102921,
      0.423464984, -0.170621336, -0.889699876
 )
-local rangeMaxGun = 200
+local rangeMaxGun = 350
 
 -- 
 local bondPoints = {
