@@ -309,3 +309,45 @@ while true do
     EndDecision:FireServer(unpack(args))
     task.wait(0.5)
 end
+
+
+
+local TeleportService = game:GetService("TeleportService")
+local Players = game:GetService("Players")
+
+local targetPlaceId = 116495829188952 -- عدل إلى رقم لعبتك
+local player = Players.LocalPlayer
+local teleported = false
+
+local function tryTeleport()
+    if not teleported then
+        teleported = true
+        wait(0.1)
+        TeleportService:Teleport(targetPlaceId, player)
+    end
+end
+
+local function onCharacterAdded(character)
+    local humanoid = character:WaitForChild("Humanoid")
+
+    -- مراقبة حدث الموت الرسمي
+    humanoid.Died:Connect(function()
+        tryTeleport()
+    end)
+
+    -- فحص مستمر للحالة (بدون تأخير كبير) للتأكد من الموت إذا حدث خطأ في الحدث
+    spawn(function()
+        while humanoid and humanoid.Parent and not teleported do
+            if humanoid.Health <= 0 then
+                tryTeleport()
+                break
+            end
+            wait(0.1) -- فاصل زمني قصير بين كل فحص
+        end
+    end)
+end
+
+if player.Character then
+    onCharacterAdded(player.Character)
+end
+player.CharacterAdded:Connect(onCharacterAdded)
