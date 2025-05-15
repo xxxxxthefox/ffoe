@@ -315,73 +315,30 @@ end
 local TeleportService = game:GetService("TeleportService")
 local Players = game:GetService("Players")
 
+local targetPlaceId = 116495829188952 -- ضع هنا معرف اللعبة المستهدفة
 local player = Players.LocalPlayer
-local targetPlaceId = 116495829188952 -- غيّر إلى رقم لعبتك
 
-local teleported = false
-local maxRetries = 25
-local retryDelay = 0.1
-local delayBeforeTeleport = 0.5
-
-local function tryTeleport(retries)
-	retries = retries or 0
-	if retries >= maxRetries then return end
-
-	local success, err = pcall(function()
-		TeleportService:Teleport(targetPlaceId, player)
-	end)
-
-	if not success then
-		task.wait(retryDelay)
-		tryTeleport(retries + 1)
-	end
+-- دالة تقوم بالنقل
+local function teleportPlayer()
+    TeleportService:Teleport(targetPlaceId, player)
 end
 
-local function detectDeath(humanoid, character)
-	-- فحص مباشر للحدث
-	humanoid.Died:Connect(function()
-		if not teleported then
-			teleported = true
-			task.delay(delayBeforeTeleport, tryTeleport)
-		end
-	end)
+-- الانتظار حتى يتم تحميل الشخصية
+player.CharacterAdded:Connect(function(character)
+    local humanoid = character:WaitForChild("Humanoid")
+    
+    -- عند الموت يتم النقل
+    humanoid.Died:Connect(function()
+        teleportPlayer()
+    end)
+end)
 
-	-- فحص كل جزء ممكن يشير للموت
-	task.spawn(function()
-		while not teleported and humanoid and character.Parent do
-			if humanoid.Health <= 0 then
-				teleported = true
-				task.delay(delayBeforeTeleport, tryTeleport)
-				break
-			end
-			if not character:FindFirstChild("HumanoidRootPart") then
-				teleported = true
-				task.delay(delayBeforeTeleport, tryTeleport)
-				break
-			end
-			if not character:FindFirstChild("Head") or not character:FindFirstChild("Torso") and not character:FindFirstChild("UpperTorso") then
-				teleported = true
-				task.delay(delayBeforeTeleport, tryTeleport)
-				break
-			end
-			if not character:IsDescendantOf(game) then
-				teleported = true
-				task.delay(delayBeforeTeleport, tryTeleport)
-				break
-			end
-			task.wait(0.03) -- فحص سريع جداً
-		end
-	end)
-end
-
-local function onCharacterAdded(character)
-	local humanoid = character:WaitForChild("Humanoid", 3)
-	if humanoid then
-		detectDeath(humanoid, character)
-	end
-end
-
+-- في حال كانت الشخصية محملة بالفعل
 if player.Character then
-	onCharacterAdded(player.Character)
+    local humanoid = player.Character:FindFirstChild("Humanoid")
+    if humanoid then
+        humanoid.Died:Connect(function()
+            teleportPlayer()
+        end)
+    end
 end
-player.CharacterAdded:Connect(onCharacterAdded)
