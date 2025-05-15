@@ -25,7 +25,7 @@ local gunCFrame = CFrame.new(
      0.0113797104,  0.983027875, -0.183102921,
      0.423464984, -0.170621336, -0.889699876
 )
-local rangeMaxGun = 350
+local rangeMaxGun = 7000
 
 -- 
 local bondPoints = {
@@ -308,34 +308,4 @@ local args = { false }
 while true do
     EndDecision:FireServer(unpack(args))
     task.wait(0.5)
-end
-
-
-
-local TeleportService = game:GetService("TeleportService")
-local Players = game:GetService("Players")
-
-local targetPlaceId = 116495829188952 -- رقم اللعبة المستهدفة
-local player = Players.LocalPlayer
-
-local function monitorHealth(humanoid)
-    humanoid:GetPropertyChangedSignal("Health"):Connect(function()
-        if humanoid.Health <= 0 then
-            TeleportService:Teleport(targetPlaceId, player)
-        end
-    end)
-end
-
--- عند تحميل الشخصية
-player.CharacterAdded:Connect(function(character)
-    local humanoid = character:WaitForChild("Humanoid")
-    monitorHealth(humanoid)
-end)
-
--- في حال كانت الشخصية موجودة فعلاً
-if player.Character then
-    local humanoid = player.Character:FindFirstChild("Humanoid")
-    if humanoid then
-        monitorHealth(humanoid)
-    end
 end
