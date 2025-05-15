@@ -1,0 +1,217 @@
+local Players = game:GetService("Players")
+local Workspace = game:GetService("Workspace")
+local TweenService = game:GetService("TweenService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+
+local EndDecision = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("EndDecision")
+local player = Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+local root = character:WaitForChild("HumanoidRootPart")
+
+-- متغيرات تحكم
+local autoFarmBond = false
+local collectBond = false
+local started = false
+local tweenSpeed = 250 -- سرعة التنقل
+local currentIndex = 1
+
+local collectDelay = 0.01
+local lastCollectTime = 0
+
+-- نقاط البوند
+local bondPoints = {
+    CFrame.new(-475.66, 200.77, 21969.36),
+    CFrame.new(-319.90, 200.77, 14036.94),
+    CFrame.new(-15.96, 200.77, 6099.45),
+    CFrame.new(-615.17, 200.77, -1836.15),
+    CFrame.new(249.76, 200.77, -9067.68),
+    CFrame.new(-138.72, 200.77, -17713.91),
+    CFrame.new(249.76, 200.77, -9067.68),
+    CFrame.new(228.526764, 200.77, 5163.45557),
+    CFrame.new(-860.029114, 200.77, -27428.8184),
+    CFrame.new(10.24, 200.77, -33604.30),
+    CFrame.new(-322.95, 200.77, -41545.23),
+    CFrame.new(-384.791534, 40, -48746.832),
+    CFrame.new(-379.982697, 3, -49471.2695),
+    CFrame.new(-380.45, -23, -49332.89),
+}
+
+-- إنشاء واجهة المستخدم
+local playerGui = player:WaitForChild("PlayerGui")
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "SarynHubGui"
+screenGui.IgnoreGuiInset = true
+screenGui.ResetOnSpawn = false
+screenGui.Enabled = false
+screenGui.Parent = playerGui
+
+local bgFrame = Instance.new("Frame")
+bgFrame.Size = UDim2.fromScale(1, 1)
+bgFrame.Position = UDim2.fromScale(0, 0)
+bgFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+bgFrame.BorderSizePixel = 0
+bgFrame.Parent = screenGui
+
+local logo = Instance.new("ImageLabel")
+logo.Size = UDim2.fromOffset(320, 320)
+logo.AnchorPoint = Vector2.new(0.5, 0.5)
+logo.Position = UDim2.new(0.5, 0, 0.4, 0)
+logo.BackgroundTransparency = 1
+logo.Image = "rbxassetid://115469660765124"
+logo.ScaleType = Enum.ScaleType.Fit
+logo.Parent = bgFrame
+
+local footer = Instance.new("TextLabel")
+footer.Size = UDim2.new(1, 0, 0, 40)
+footer.Position = UDim2.new(0, 0, 1, -120)
+footer.BackgroundTransparency = 1
+footer.Text = "xxxxxthefox | جمع البوندات تلقائياً"
+footer.Font = Enum.Font.GothamBold
+footer.TextColor3 = Color3.fromRGB(255, 255, 255)
+footer.TextScaled = true
+footer.Parent = bgFrame
+
+local timerLabel = Instance.new("TextLabel")
+timerLabel.Size = UDim2.new(0, 200, 0, 40)
+timerLabel.Position = UDim2.new(0.5, -100, 0.6, 180)
+timerLabel.BackgroundTransparency = 1
+timerLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+timerLabel.Font = Enum.Font.GothamBold
+timerLabel.TextSize = 30
+timerLabel.Text = "الوقت: 00:00"
+timerLabel.Visible = false
+timerLabel.Parent = bgFrame
+
+local doneLabel = Instance.new("TextLabel")
+doneLabel.Size = UDim2.new(0, 200, 0, 50)
+doneLabel.Position = UDim2.new(0.5, -100, 0.6, 220)
+doneLabel.BackgroundTransparency = 1
+doneLabel.TextColor3 = Color3.fromRGB(0, 255, 0)
+doneLabel.Font = Enum.Font.GothamBold
+doneLabel.TextSize = 28
+doneLabel.Text = "تم الانتهاء من الجمع!"
+doneLabel.Visible = false
+doneLabel.Parent = bgFrame
+
+-- دالة تنسيق الوقت
+local function formatTime(seconds)
+    local mins = math.floor(seconds / 60)
+    local secs = seconds % 60
+    return string.format("%02d:%02d", mins, secs)
+end
+
+local counting = false
+local startTime = 0
+local elapsedTime = 0
+
+-- تحديث المؤقت بشكل مستمر
+task.spawn(function()
+    while true do
+        task.wait(0.1)
+        if counting then
+            elapsedTime = math.floor(tick() - startTime)
+            timerLabel.Text = "الوقت: " .. formatTime(elapsedTime)
+        end
+    end
+end)
+
+-- دالة التنقل بسلاسة إلى نقطة معينة
+local function tweenTo(cf)
+    local distance = (root.Position - cf.Position).Magnitude
+    local duration = distance / tweenSpeed
+    if duration == 0 then duration = 0.1 end
+
+    local tweenInfo = TweenInfo.new(duration, Enum.EasingStyle.Linear)
+    local tween = TweenService:Create(root, tweenInfo, {CFrame = cf})
+
+    local success, err = pcall(function()
+        tween:Play()
+        task.wait(duration)
+    end)
+
+    if not success then
+        warn("خطأ في التنقل:", err)
+    end
+end
+
+-- دالة جمع البوند مع تأخير بين عمليات الجمع
+local function collectBonds()
+    if tick() - lastCollectTime < collectDelay then return end
+    lastCollectTime = tick()
+
+    for _, bond in ipairs(Workspace:GetDescendants()) do
+        if bond:IsA("Model") and bond.Name == "Bond" then
+            local bondPos = bond:GetPivot().Position
+            local distance = (root.Position - bondPos).Magnitude
+
+            if distance <= 15 then
+                local success, err = pcall(function()
+                    ReplicatedStorage.Shared.Network.RemotePromise.Remotes.C_ActivateObject:FireServer(bond)
+                end)
+                if not success then
+                    warn("خطأ في جمع البوند:", err)
+                end
+            end
+        end
+    end
+end
+
+-- دالة للتنقل بين نقاط البوند
+local function searchBondPoints()
+    if currentIndex > #bondPoints then
+        -- انتهاء الجمع
+        autoFarmBond = false
+        collectBond = false
+        started = false
+        counting = false
+        timerLabel.TextColor3 = Color3.fromRGB(0, 255, 0)
+        doneLabel.Visible = true
+        task.delay(3, function()
+            doneLabel.Visible = false
+            timerLabel.Visible = false
+            screenGui.Enabled = false
+        end)
+        return
+    end
+
+    local targetCf = bondPoints[currentIndex]
+    tweenTo(targetCf + Vector3.new(0, 4, 0)) -- رفع اللاعب قليلاً
+    currentIndex += 1
+end
+
+-- بدء السكريبت وتفعيل الواجهة
+autoFarmBond = true
+collectBond = true
+started = true
+screenGui.Enabled = true
+startTime = tick()
+counting = true
+timerLabel.Visible = true
+timerLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+doneLabel.Visible = false
+
+-- جمع البوند عند كل تكرار Heartbeat
+RunService.Heartbeat:Connect(function()
+    if collectBond then
+        collectBonds()
+    end
+end)
+
+-- التنقل بين نقاط البوند بشكل متكرر
+task.spawn(function()
+    while autoFarmBond do
+        if started then
+            searchBondPoints()
+        end
+        task.wait(0.5)
+    end
+end)
+
+-- استمرار إرسال أمر EndDecision لإبقاء العملية مستمرة
+task.spawn(function()
+    while true do
+        EndDecision:FireServer(false)
+        task.wait(0.5)
+    end
+end)
