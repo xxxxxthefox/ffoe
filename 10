@@ -189,7 +189,7 @@ screenGui.Parent = playerGui
 local bgFrame = Instance.new("Frame")
 bgFrame.Size = UDim2.fromScale(1, 1)
 bgFrame.Position = UDim2.fromScale(0, 0)
-bgFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+bgFrame.BackgroundTransparency = 1
 bgFrame.BorderSizePixel = 0
 bgFrame.Parent = screenGui
 
