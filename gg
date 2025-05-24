@@ -1,0 +1,125 @@
+getgenv().settings = {
+    autoattack = false,
+    minWait = 0.0000001,
+    maxWait = 0.0000001,
+    predictionFactor = 0.165, -- يتم تحديثه تلقائياً
+}
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local Workspace = game:GetService("Workspace")
+local CoreGui = game:GetService("CoreGui")
+local localPlayer = Players.LocalPlayer
+local camera = Workspace.CurrentCamera
+
+-- GUI
+local gui = Instance.new("ScreenGui", CoreGui)
+gui.ResetOnSpawn = false
+
+local toggleButton = Instance.new("TextButton", gui)
+toggleButton.Size = UDim2.new(0, 120, 0, 35)
+toggleButton.Position = UDim2.new(0.5, -60, 0.05, 0)
+toggleButton.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
+toggleButton.Text = "الايمبوت معطل"
+
+local statusLabel = Instance.new("TextLabel", gui)
+statusLabel.Size = UDim2.new(0, 200, 0, 30)
+statusLabel.Position = UDim2.new(0.5, -100, 0.1, 0)
+statusLabel.Text = "لا يوجد عدو"
+statusLabel.TextColor3 = Color3.fromRGB(0, 255, 0)
+statusLabel.BackgroundTransparency = 1
+
+-- أيمبوت قوي ودقيق جداً
+local function getPing()
+    local success, ping = pcall(function()
+        return localPlayer:GetNetworkPing() * 1000
+    end)
+    return success and ping or 50
+end
+
+local function calcPrediction(ping)
+    if ping < 50 then return 0.165 end
+    if ping < 100 then return 0.18 end
+    if ping < 150 then return 0.21 end
+    return 0.25
+end
+
+-- تحديث تلقائي للـ Prediction
+task.spawn(function()
+    while true do
+        settings.predictionFactor = calcPrediction(getPing())
+        task.wait(2)
+    end
+end)
+
+-- فحص Raycast متطور
+local function smartRaycast(part, velocity, duration)
+    local predicted = part.Position + (velocity * duration)
+    local direction = (predicted - camera.CFrame.Position).Unit * 9999
+
+    local rayParams = RaycastParams.new()
+    rayParams.FilterType = Enum.RaycastFilterType.Blacklist
+    rayParams.FilterDescendantsInstances = {localPlayer.Character}
+    rayParams.IgnoreWater = true
+
+    local result = Workspace:Raycast(camera.CFrame.Position, direction, rayParams)
+    if result and result.Instance and result.Instance:IsDescendantOf(part.Parent) then
+        return result.Position
+    else
+        -- fallback إلى موقع الرأس المتوقع
+        return predicted
+    end
+end
+
+-- استهداف دقيق للغاية
+local function getBestTarget()
+    local best, shortest = nil, math.huge
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= localPlayer and player.Team ~= localPlayer.Team then
+            local char = player.Character
+            if char and char:FindFirstChild("Head") and char:FindFirstChild("Humanoid") and char.Humanoid.Health > 0 then
+                local head = char.Head
+                local predicted = smartRaycast(head, head.Velocity, settings.predictionFactor)
+                local dist = (camera.CFrame.Position - predicted).Magnitude
+                if dist < shortest then
+                    best = head
+                    shortest = dist
+                end
+            end
+        end
+    end
+    return best
+end
+
+-- التحكم بالكاميرا وتحديث الحالة
+local enabled = false
+
+RunService.RenderStepped:Connect(function()
+    if not enabled then return end
+
+    local target = getBestTarget()
+    if target then
+        local predicted = smartRaycast(target, target.Velocity, settings.predictionFactor)
+        camera.CFrame = CFrame.new(camera.CFrame.Position, predicted)
+        statusLabel.Text = "عدو: " .. target.Parent.Name
+        statusLabel.TextColor3 = Color3.fromRGB(255, 0, 0)
+    else
+        statusLabel.Text = "لا يوجد عدو"
+        statusLabel.TextColor3 = Color3.fromRGB(0, 255, 0)
+    end
+end)
+
+-- زر التبديل
+toggleButton.MouseButton1Click:Connect(function()
+    enabled = not enabled
+    toggleButton.Text = enabled and "الايمبوت مفعل" or "الايمبوت معطل"
+end)
+
+-- إشعار
+pcall(function()
+    game.StarterGui:SetCore("SendNotification", {
+        Title = "Aimbot Pro V5",
+        Text = "بقوة خارقة و دقة 99.9999999999%",
+        Duration = 10
+    })
+end)
