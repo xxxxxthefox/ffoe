@@ -1,159 +1,102 @@
 getgenv().settings = {
-    autoattack = false,
-    minWait = 0.00001,
-    maxWait = 0.00005,
-    predictionFactor = 0.165, -- يتغير حسب البينغ
+    autoattack = true,
+    minWait = 0,
+    maxWait = 0,
+    precision = 0 -- دقة لا نهائية
 }
-
-local enemyDetectedColor = Color3.fromRGB(255, 0, 0)
-local noneColor = Color3.fromRGB(0, 255, 0)
-local aimbotEnabled = false
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
-local UserInputService = game:GetService("UserInputService")
-local CoreGui = game:GetService("CoreGui")
-local localPlayer = Players.LocalPlayer
 local camera = Workspace.CurrentCamera
+local localPlayer = Players.LocalPlayer
 
--- GUI
-local gui = Instance.new("ScreenGui", CoreGui)
+local aimbotEnabled = true
+local predictionFactor = 0.25 -- تنبؤ أسرع بحركة العدو
+local enemyColor = Color3.fromRGB(255, 0, 0)
+local safeColor = Color3.fromRGB(0, 255, 0)
+
+-- واجهة متقدمة
+local gui = Instance.new("ScreenGui", game.CoreGui)
 gui.ResetOnSpawn = false
 
-local toggleButton = Instance.new("TextButton", gui)
-toggleButton.Size = UDim2.new(0, 120, 0, 35)
-toggleButton.Position = UDim2.new(0.5, -60, 0.05, 0)
-toggleButton.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
-toggleButton.Text = "الايمبوت معطل"
-
 local statusLabel = Instance.new("TextLabel", gui)
-statusLabel.Size = UDim2.new(0, 200, 0, 30)
-statusLabel.Position = UDim2.new(0.5, -100, 0.1, 0)
-statusLabel.Text = "لا يوجد عدو"
-statusLabel.TextColor3 = noneColor
+statusLabel.Size = UDim2.new(0, 300, 0, 30)
+statusLabel.Position = UDim2.new(0.5, -150, 0.1, 0)
 statusLabel.BackgroundTransparency = 1
+statusLabel.TextColor3 = safeColor
+statusLabel.TextScaled = true
+statusLabel.Text = "لا يوجد عدو"
 
--- حماية بسيطة
-local function protect()
-    if identifyexecutor and not identifyexecutor():lower():find("syn") then
-        warn("Executor غير مدعوم.")
-    end
-end
-
--- فحص الفريق مع دعم اللاعب بدون فريق
+-- التحقق من الخصم
 local function isEnemy(player)
-    if player == localPlayer then return false end
-    if not player.Team or not localPlayer.Team then
-        return player.Team ~= localPlayer.Team
-    else
-        return player.Team ~= localPlayer.Team
-    end
+    return player ~= localPlayer and player.Team ~= localPlayer.Team
 end
 
--- فحص الحياة
 local function isAlive(player)
-    local char = player.Character
-    if not char then return false end
-    local humanoid = char:FindFirstChildOfClass("Humanoid")
-    return humanoid and humanoid.Health > 0
+    return player.Character and player.Character:FindFirstChild("Humanoid") and player.Character.Humanoid.Health > 0
 end
 
--- فحص الجدار بدقة (خط الرؤية)
-local function isVisible(targetPart)
-    local rayParams = RaycastParams.new()
-    rayParams.FilterDescendantsInstances = {localPlayer.Character}
-    rayParams.FilterType = Enum.RaycastFilterType.Blacklist
-    rayParams.IgnoreWater = true
-
+local function isVisible(part)
     local origin = camera.CFrame.Position
-    local direction = (targetPart.Position - origin)
-    local raycastResult = Workspace:Raycast(origin, direction, rayParams)
+    local ray = RaycastParams.new()
+    ray.FilterType = Enum.RaycastFilterType.Blacklist
+    ray.FilterDescendantsInstances = {localPlayer.Character, part.Parent}
+    ray.IgnoreWater = true
 
-    if raycastResult then
-        local hitPart = raycastResult.Instance
-        if hitPart and hitPart:IsDescendantOf(targetPart.Parent) then
-            return true
-        else
-            return false
-        end
-    else
-        return true
-    end
+    local result = Workspace:Raycast(origin, (part.Position - origin).Unit * 9999, ray)
+    return not result
 end
 
--- Raycast مع التنبؤ
-local function advancedRaycast(origin, velocity, duration)
-    local predictedPosition = origin + (velocity * duration)
-    local direction = (predictedPosition - camera.CFrame.Position)
-    
-    local rayParams = RaycastParams.new()
-    rayParams.FilterDescendantsInstances = {localPlayer.Character}
-    rayParams.FilterType = Enum.RaycastFilterType.Blacklist
-    rayParams.IgnoreWater = true
-    
-    local result = Workspace:Raycast(camera.CFrame.Position, direction, rayParams)
-    if result and result.Instance and result.Instance:IsDescendantOf(localPlayer.Character) == false then
-        return result.Position
-    else
-        return predictedPosition
-    end
-end
-
--- إيجاد أقرب هدف مرئي
 local function getTarget()
-    local closest, shortest = nil, math.huge
-    for _, player in ipairs(Players:GetPlayers()) do
+    local closest = nil
+    local shortest = math.huge
+
+    for _, player in pairs(Players:GetPlayers()) do
         if isEnemy(player) and isAlive(player) then
-            local char = player.Character
-            local head = char and char:FindFirstChild("Head")
+            local head = player.Character:FindFirstChild("Head")
             if head and isVisible(head) then
-                local predicted = advancedRaycast(head.Position, head.Velocity, settings.predictionFactor)
-                local distance = (camera.CFrame.Position - predicted).Magnitude
-                if distance < shortest then
+                local dist = (head.Position - localPlayer.Character.HumanoidRootPart.Position).Magnitude
+                if dist < shortest then
+                    shortest = dist
                     closest = head
-                    shortest = distance
                 end
             end
         end
     end
+
     return closest
 end
 
--- تحديث الكاميرا نحو الهدف
-RunService.RenderStepped:Connect(function()
-    protect()
-
-    if not aimbotEnabled then
-        statusLabel.Text = "لا يوجد عدو"
-        statusLabel.TextColor3 = noneColor
-        return
+local function predict(target)
+    if target and target.Velocity then
+        return target.Position + target.Velocity * predictionFactor
     end
+    return target.Position
+end
+
+-- حلقة التصويب
+RunService.RenderStepped:Connect(function()
+    if not aimbotEnabled then return end
 
     local target = getTarget()
     if target then
-        local predicted = advancedRaycast(target.Position, target.Velocity, settings.predictionFactor)
+        local predicted = predict(target)
         camera.CFrame = CFrame.new(camera.CFrame.Position, predicted)
         statusLabel.Text = "عدو: " .. target.Parent.Name
-        statusLabel.TextColor3 = enemyDetectedColor
+        statusLabel.TextColor3 = enemyColor
     else
         statusLabel.Text = "لا يوجد عدو"
-        statusLabel.TextColor3 = noneColor
+        statusLabel.TextColor3 = safeColor
     end
 end)
 
--- زر التبديل
-toggleButton.MouseButton1Click:Connect(function()
-    aimbotEnabled = not aimbotEnabled
-    toggleButton.Text = aimbotEnabled and "الايمبوت مفعل" or "الايمبوت معطل"
-end)
-
--- إشعار
+-- تنبيه التشغيل
 pcall(function()
     game.StarterGui:SetCore("SendNotification", {
-        Title = "Aimbot V4";
-        Text = "By xxxxxthefox";
-        Icon = "rbxassetid://115469660765124";
-        Duration = 12;
+        Title = "Aimbot Ultra",
+        Text = "تم التفعيل بنجاح - قوة خارقة",
+        Icon = "rbxassetid://115469660765124",
+        Duration = 20
     })
 end)
