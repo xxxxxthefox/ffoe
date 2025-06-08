@@ -1,0 +1,177 @@
+-- تم التعديل بواسطة xxxxxTheFox
+
+local Config = {
+    Box = true,
+    BoxOutline = true,
+    BoxColor = Color3.fromRGB(0, 255, 0),
+    BoxOutlineColor = Color3.fromRGB(0, 0, 0),
+    HealthBar = true,
+    HealthBarSide = "Left",
+    Names = true,
+    NamesOutline = true,
+    NamesColor = Color3.fromRGB(255, 255, 255),
+    NamesOutlineColor = Color3.fromRGB(0, 0, 0),
+    NamesFont = 2,
+    NamesSize = 15,
+    ShowDamageWarning = true,
+    ShowTargetWarning = true,
+}
+
+local LocalPlayer = game.Players.LocalPlayer
+local Camera = workspace.CurrentCamera
+
+function CreateEsp(Player)
+    local Box, BoxOutline = Drawing.new("Square"), Drawing.new("Square")
+    local Name = Drawing.new("Text")
+    local HealthBar, HealthBarOutline = Drawing.new("Square"), Drawing.new("Square")
+    local Warning = Drawing.new("Text")
+    local AimWarning = Drawing.new("Text")
+
+    local lastHealth = 100
+
+    local function isLookingAtYou(otherCharacter)
+        if not LocalPlayer.Character or not LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then return false end
+        local hrp = otherCharacter:FindFirstChild("HumanoidRootPart")
+        local head = otherCharacter:FindFirstChild("Head")
+        if not hrp or not head then return false end
+
+        local lookVector = head.CFrame.LookVector
+        local directionToYou = (LocalPlayer.Character.HumanoidRootPart.Position - head.Position).Unit
+        local dot = lookVector:Dot(directionToYou)
+
+        return dot > 0.96 -- كلما اقترب من 1 كلما كانت النظرة مباشرة
+    end
+
+    local Updater = game:GetService("RunService").RenderStepped:Connect(function()
+        if Player.Character and Player.Character:FindFirstChild("Humanoid") and Player.Character:FindFirstChild("HumanoidRootPart") then
+            local humanoid = Player.Character.Humanoid
+            local root = Player.Character.HumanoidRootPart
+            local head = Player.Character:FindFirstChild("Head")
+
+            if humanoid.Health <= 0 then
+                Box.Visible = false
+                BoxOutline.Visible = false
+                Name.Visible = false
+                HealthBar.Visible = false
+                HealthBarOutline.Visible = false
+                Warning.Visible = false
+                AimWarning.Visible = false
+                return
+            end
+
+            local pos, onScreen = Camera:WorldToViewportPoint(root.Position)
+            local scale = 1 / (pos.Z * math.tan(math.rad(Camera.FieldOfView / 2))) * 100
+            local width, height = math.floor(40 * scale), math.floor(60 * scale)
+
+            -- الصندوق
+            if Config.Box then
+                Box.Visible = onScreen
+                Box.Size = Vector2.new(width, height)
+                Box.Position = Vector2.new(pos.X - width / 2, pos.Y - height / 2)
+                Box.Color = Config.BoxColor
+                Box.Thickness = 2
+                Box.ZIndex = 2
+
+                BoxOutline.Visible = Config.BoxOutline and onScreen
+                BoxOutline.Size = Box.Size
+                BoxOutline.Position = Box.Position
+                BoxOutline.Color = Config.BoxOutlineColor
+                BoxOutline.Thickness = 4
+                BoxOutline.ZIndex = 1
+            end
+
+            -- الاسم + المسافة
+            if Config.Names then
+                Name.Visible = onScreen
+                Name.Text = "اللاعب: " .. Player.Name .. " | المسافة: " .. math.floor((Camera.CFrame.Position - root.Position).Magnitude) .. "م"
+                Name.Color = Config.NamesColor
+                Name.Outline = Config.NamesOutline
+                Name.OutlineColor = Config.NamesOutlineColor
+                Name.Position = Vector2.new(pos.X, pos.Y - height / 2 - 15)
+                Name.Center = true
+                Name.Font = Config.NamesFont
+                Name.Size = Config.NamesSize
+            end
+
+            -- شريط الصحة
+            if Config.HealthBar then
+                HealthBarOutline.Visible = onScreen
+                HealthBarOutline.Filled = true
+                HealthBarOutline.Color = Color3.new(0, 0, 0)
+                HealthBarOutline.ZIndex = 1
+
+                HealthBar.Visible = onScreen
+                HealthBar.Color = Color3.fromRGB(255, 0, 0):lerp(Color3.fromRGB(0, 255, 0), humanoid.Health / humanoid.MaxHealth)
+                HealthBar.Filled = true
+                HealthBar.ZIndex = 2
+
+                if Config.HealthBarSide == "Left" then
+                    HealthBarOutline.Size = Vector2.new(2, height)
+                    HealthBarOutline.Position = Vector2.new(pos.X - width / 2 - 4, pos.Y - height / 2)
+                    HealthBar.Size = Vector2.new(2, math.floor((height - 2) * (humanoid.Health / humanoid.MaxHealth)))
+                    HealthBar.Position = HealthBarOutline.Position + Vector2.new(0, height - HealthBar.Size.Y)
+                end
+            end
+
+            -- تحذير الضرر
+            if Config.ShowDamageWarning and humanoid.Health < lastHealth then
+                Warning.Visible = true
+                Warning.Text = "⚠️ تـعـرضـت لـضـرر!"
+                Warning.Color = Color3.fromRGB(255, 50, 50)
+                Warning.Outline = true
+                Warning.OutlineColor = Color3.new(0, 0, 0)
+                Warning.Position = Vector2.new(pos.X, pos.Y - height / 2 - 35)
+                Warning.Center = true
+                Warning.Size = 15
+                task.delay(1.5, function() Warning.Visible = false end)
+            end
+            lastHealth = humanoid.Health
+
+            -- تحذير التهديف عليك
+            if Config.ShowTargetWarning and isLookingAtYou(Player.Character) then
+                AimWarning.Visible = true
+                AimWarning.Text = "⚠️ هناك من يراقبك!"
+                AimWarning.Color = Color3.fromRGB(255, 200, 0)
+                AimWarning.Outline = true
+                AimWarning.OutlineColor = Color3.new(0, 0, 0)
+                AimWarning.Position = Vector2.new(pos.X, pos.Y - height / 2 - 50)
+                AimWarning.Center = true
+                AimWarning.Size = 14
+            else
+                AimWarning.Visible = false
+            end
+        else
+            Box.Visible = false
+            BoxOutline.Visible = false
+            Name.Visible = false
+            HealthBar.Visible = false
+            HealthBarOutline.Visible = false
+            Warning.Visible = false
+            AimWarning.Visible = false
+        end
+    end)
+end
+
+-- تجهيز اللاعبين الحاليين
+for _, player in ipairs(game.Players:GetPlayers()) do
+    if player ~= LocalPlayer then
+        CreateEsp(player)
+        player.CharacterAdded:Connect(function()
+            task.wait(1)
+            CreateEsp(player)
+        end)
+    end
+end
+
+-- لاعبين جدد
+game.Players.PlayerAdded:Connect(function(player)
+    if player ~= LocalPlayer then
+        CreateEsp(player)
+        player.CharacterAdded:Connect(function()
+            task.wait(1)
+            CreateEsp(player)
+        end)
+    end
+end)
+
+return Config
